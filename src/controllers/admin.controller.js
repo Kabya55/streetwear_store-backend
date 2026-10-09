@@ -30,15 +30,32 @@ export const getAdminStats = async (req, res) => {
       deliveryStatus: { $in: ['Pending', 'Processing'] },
     });
 
-    const salesMatch = { paymentStatus: 'Paid' };
-    if (startDate) {
-      salesMatch.createdAt = { $gte: startDate };
-    }
+    // Total Sales — exclude Cancelled orders
+    const salesMatch = { paymentStatus: 'Paid', deliveryStatus: { $ne: 'Cancelled' } };
+    if (startDate) salesMatch.createdAt = { $gte: startDate };
     const salesAggregate = await Order.aggregate([
       { $match: salesMatch },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } },
     ]);
     const totalSales = salesAggregate.length > 0 ? salesAggregate[0].total : 0;
+
+    // Total Paid Taka — exclude Cancelled orders
+    const paidMatch = { paymentStatus: 'Paid', deliveryStatus: { $ne: 'Cancelled' } };
+    if (startDate) paidMatch.createdAt = { $gte: startDate };
+    const paidAggregate = await Order.aggregate([
+      { $match: paidMatch },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+    ]);
+    const totalPaid = paidAggregate.length > 0 ? paidAggregate[0].total : 0;
+
+    // Total Pending Taka — exclude Cancelled orders
+    const pendingPayMatch = { paymentStatus: 'Pending', deliveryStatus: { $ne: 'Cancelled' } };
+    if (startDate) pendingPayMatch.createdAt = { $gte: startDate };
+    const pendingPayAggregate = await Order.aggregate([
+      { $match: pendingPayMatch },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+    ]);
+    const totalPendingAmount = pendingPayAggregate.length > 0 ? pendingPayAggregate[0].total : 0;
 
     res.json({
       totalSales,
@@ -46,6 +63,8 @@ export const getAdminStats = async (req, res) => {
       totalOrders,
       deliveredOrders,
       pendingOrders,
+      totalPaid,
+      totalPendingAmount,
       range: range || 'total',
     });
   } catch (error) {
@@ -77,6 +96,36 @@ export const getAllUsersWithOrders = async (req, res) => {
     ]);
 
     res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ['admin', 'editor', 'user'];
+
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be admin, editor, or user.' });
+    }
+
+    // Prevent admin from changing their own role accidentally
+    if (req.params.id === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot change your own role.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -134,6 +183,37 @@ export const updateDeliveryStatus = async (req, res) => {
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { deliveryStatus: status },
+      { new: true }
+    );
+
+    res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updatePaymentStatus = async (req, res) => {
+  try {
+    const { paymentStatus } = req.body;
+    const validStatuses = ['Paid', 'Pending'];
+
+    if (!validStatuses.includes(paymentStatus)) {
+      return res.status(400).json({ message: 'Invalid payment status. Use Paid or Pending.' });
+    }
+
+    const existing = await Order.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Cancelled orders cannot have their payment status changed
+    if (existing.deliveryStatus === 'Cancelled') {
+      return res.status(400).json({ message: 'Cannot change payment status of a Cancelled order.' });
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { paymentStatus },
       { new: true }
     );
 
