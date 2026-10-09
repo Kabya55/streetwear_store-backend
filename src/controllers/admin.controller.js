@@ -57,6 +57,15 @@ export const getAdminStats = async (req, res) => {
     ]);
     const totalPendingAmount = pendingPayAggregate.length > 0 ? pendingPayAggregate[0].total : 0;
 
+    // Total Cancelled Taka
+    const cancelledMatch = { deliveryStatus: 'Cancelled' };
+    if (startDate) cancelledMatch.createdAt = { $gte: startDate };
+    const cancelledAggregate = await Order.aggregate([
+      { $match: cancelledMatch },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+    ]);
+    const totalCancelledAmount = cancelledAggregate.length > 0 ? cancelledAggregate[0].total : 0;
+
     res.json({
       totalSales,
       totalUsers,
@@ -65,6 +74,7 @@ export const getAdminStats = async (req, res) => {
       pendingOrders,
       totalPaid,
       totalPendingAmount,
+      totalCancelledAmount,
       range: range || 'total',
     });
   } catch (error) {
