@@ -54,3 +54,10 @@ export const requireAdmin = (req, res, next) => {
   }
   return res.status(403).json({ message: 'Forbidden: Admin privilege required.' });
 };
+
+export const requireAdminOrEditor = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'editor')) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Forbidden: Admin or Editor privilege required.' });
+};

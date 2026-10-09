@@ -9,20 +9,20 @@ import {
   createCategory,
   getProductFilters,
 } from '../controllers/product.controller.js';
-import { verifySession, requireAdmin } from '../middleware/auth.js';
+import { verifySession, requireAdminOrEditor } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Filter & categories metadata routes (must be before /:id)
 router.get('/filters', getProductFilters);
 router.get('/categories', getCategories);
-router.post('/categories', verifySession, requireAdmin, createCategory);
+router.post('/categories', verifySession, requireAdminOrEditor, createCategory);
 
 // Products CRUD routes
 router.get('/', getProducts);
 router.get('/:id', getProductById);
-router.post('/', verifySession, requireAdmin, createProduct);
-router.put('/:id', verifySession, requireAdmin, updateProduct);
-router.delete('/:id', verifySession, requireAdmin, deleteProduct);
+router.post('/', verifySession, requireAdminOrEditor, createProduct);
+router.put('/:id', verifySession, requireAdminOrEditor, updateProduct);
+router.delete('/:id', verifySession, requireAdminOrEditor, deleteProduct);
 
 export default router;

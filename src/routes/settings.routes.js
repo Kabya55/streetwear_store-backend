@@ -1,6 +1,6 @@
 import express from 'express';
 import { getSettings, updateSettings } from '../controllers/settings.controller.js';
-import { verifySession, requireAdmin } from '../middleware/auth.js';
+import { verifySession, requireAdminOrEditor } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,9 +8,9 @@ const router = express.Router();
 router.get('/', getSettings);
 router.get('/delivery-charge', getSettings);
 
-// Admin only: edit and update delivery charge
-router.patch('/', verifySession, requireAdmin, updateSettings);
-router.put('/', verifySession, requireAdmin, updateSettings);
-router.post('/', verifySession, requireAdmin, updateSettings);
+// Admin & Editor: edit and update delivery charge
+router.patch('/', verifySession, requireAdminOrEditor, updateSettings);
+router.put('/', verifySession, requireAdminOrEditor, updateSettings);
+router.post('/', verifySession, requireAdminOrEditor, updateSettings);
 
 export default router;

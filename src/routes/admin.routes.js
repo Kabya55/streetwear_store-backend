@@ -8,21 +8,26 @@ import {
   updateUserRole,
 } from '../controllers/admin.controller.js';
 import { getSettings, updateSettings } from '../controllers/settings.controller.js';
-import { verifySession, requireAdmin } from '../middleware/auth.js';
+import { verifySession, requireAdmin, requireAdminOrEditor } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Protect all admin endpoints
-router.use(verifySession, requireAdmin);
+// Base session check
+router.use(verifySession);
 
-router.get('/stats', getAdminStats);
-router.get('/users', getAllUsersWithOrders);
-router.patch('/users/:id/role', updateUserRole);
-router.get('/orders', getAllOrdersAdmin);
-router.patch('/orders/:id/status', updateDeliveryStatus);
-router.patch('/orders/:id/payment', updatePaymentStatus);
-router.get('/settings', getSettings);
-router.patch('/settings', updateSettings);
-router.put('/settings', updateSettings);
+// Stats & Orders (Accessible by Admin and Editor)
+router.get('/stats', requireAdminOrEditor, getAdminStats);
+router.get('/orders', requireAdminOrEditor, getAllOrdersAdmin);
+router.patch('/orders/:id/status', requireAdminOrEditor, updateDeliveryStatus);
+router.patch('/orders/:id/payment', requireAdminOrEditor, updatePaymentStatus);
+
+// Settings (Read by Admin/Editor, Write by Admin only)
+router.get('/settings', requireAdminOrEditor, getSettings);
+router.patch('/settings', requireAdmin, updateSettings);
+router.put('/settings', requireAdmin, updateSettings);
+
+// User Management (Admin only)
+router.get('/users', requireAdmin, getAllUsersWithOrders);
+router.patch('/users/:id/role', requireAdmin, updateUserRole);
 
 export default router;
